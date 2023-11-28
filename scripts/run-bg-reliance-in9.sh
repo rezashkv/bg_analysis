@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=cub-bg-reliance # Specify a name for your job
-#SBATCH --output=slurm-logs/out-cub-bg-reliance.log       # Specify the output log file
-#SBATCH --error=slurm-logs/err-cub-bg-reliance.log         # Specify the error log file
+#SBATCH --job-name=in9-bg-reliance # Specify a name for your job
+#SBATCH --output=slurm-logs/out-in9-bg-reliance.log       # Specify the output log file
+#SBATCH --error=slurm-logs/err-in9-bg-reliance.log         # Specify the error log file
 # Specify the partition (queue) you want to use
 #SBATCH --nodes=1                 # Number of nodes to request
 #SBATCH --ntasks-per-node=1
@@ -22,11 +22,11 @@ dataset="in9"
 cd /path/to/bg_analysis/Imagenet || exit
 
 for dataset_v in "${dataset_variations[@]}"; do
-  python3 train.py --dataset_dir '/path/to/in9' \
+  python3 bg_reliance.py --dataset_dir '/path/to/in9' \
     --dataset "$dataset_v" \
     --epochs 100 \
     --exp_name "${exp_name}-${dataset}" \
-    --model resnet18 \
+    --model vit \
     --lr 0.001 \
     --batch_size 64 \
     --weight_decay 0.001 \
