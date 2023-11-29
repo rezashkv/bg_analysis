@@ -29,12 +29,12 @@ for dataset_v in "${dataset_variations[@]}"; do
   --validation_dir "/path/to/${dataset}/${dataset_v}/val" \
   --test_dir "/path/to/${dataset}/test/${dataset_v}/val" \
   --original_test_dir "/path/to/${dataset}/test/original/val" \
-  --output_dir ./outputs-in9-bg-reliance \
+  --output_dir "./outputs-${dataset}-bg-reliance-${dataset_v}" \
   --learning_rate 0.001 \
-  --weight_decay 0.0001 \
+  --weight_decay 0.0 \
   --num_train_epochs 100 \
   --per_device_train_batch_size 128 \
   --with_tracking \
   --experiment_name "${exp_name}-${dataset_v}" \
-  --lr_scheduler_type reduce_lr_on_plateau
+  --lr_scheduler_type linear
 done
