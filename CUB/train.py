@@ -1,8 +1,7 @@
 # script to train a resnet18 model on CUB dataset all from huggingface
 import torchvision
 from sklearn.model_selection import train_test_split
-from torchvision.models import (resnet18, alexnet, vgg16, wide_resnet50_2, resnet50, resnext50_32x4d,
-                                mobilenet_v3_small,
+from torchvision.models import (resnet18, alexnet, vgg16, wide_resnet50_2, resnet50, resnext50_32x4d, mobilenet_v3_small,
                                 googlenet, inception_v3, shufflenet_v2_x0_5, densenet121)
 from torchvision import transforms
 from torch.utils.data import DataLoader
@@ -11,23 +10,13 @@ import torch.nn as nn
 from tqdm import tqdm
 import os
 import argparse
-from transformers import AdamW, AutoImageProcessor
+from transformers import AdamW
 from torch.optim.lr_scheduler import StepLR
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 import numpy as np
 import logging
 import wandb
-from transformers import ViTConfig, ViTForImageClassification
-from torchvision.transforms import (
-    CenterCrop,
-    Compose,
-    Lambda,
-    Normalize,
-    RandomHorizontalFlip,
-    RandomResizedCrop,
-    Resize,
-    ToTensor,
-)
+from transformers import ViTForImageClassification
 
 
 def get_model(model_name, num_classes, pretrained=False):
@@ -54,10 +43,6 @@ def get_model(model_name, num_classes, pretrained=False):
     elif model_name == 'densenet121':
         model = densenet121(pretrained=pretrained, num_classes=num_classes)
     elif model_name == 'vit':
-        configuration = ViTConfig()
-        model = ViTForImageClassification(configuration)
-        model.classifier = nn.Linear(model.config.hidden_size, num_classes)
-    elif model_name == 'vit-pretrained':
         model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224-in21k')
         model.classifier = nn.Linear(model.config.hidden_size, num_classes)
     else:
@@ -71,8 +56,9 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--lr', type=float, default=5e-3)
     parser.add_argument('--dataset', type=str, required=True)
-    parser.add_argument('--dataset_dir', type=str, required=True)
-    parser.add_argument('--exp_name', type=str, default='in9-bg-reliance')
+    parser.add_argument('--original_dataset_dir', type=str,
+                        default='/fs/nexus-scratch/rezashkv/research/data/bg_challenge/CUB_200')
+    parser.add_argument('--exp_name', type=str, default='bg-reliance')
     parser.add_argument('--save_dir', type=str, default='saved_models')
     parser.add_argument('--model', type=str, default='resnet18')
     parser.add_argument('--device', type=str, default='cuda')
@@ -80,7 +66,7 @@ def parse_args():
     parser.add_argument('--num_classes', type=int, default=200)
     parser.add_argument('--weight_decay', type=float, default=1e-1)
     parser.add_argument('--pretrained', action='store_true')
-    parser.add_argument('--lr_scheduler_step_size', type=int, default=10)
+    parser.add_argument('--lr_scheduler_step_size', type=int, default=5)
     parser.add_argument('--lr_scheduler_gamma', type=float, default=0.9)
     parser.add_argument('--dataset_ratio', type=float, default=1.0)
 
@@ -94,7 +80,7 @@ def train(model, train_loader, criterion, optimizer, scheduler):
     for batch in tqdm(train_loader):
         images = batch[0].to(args.device)
         labels = batch[1].to(args.device)
-        pred = model(images).logits
+        pred = model(images)
         loss = criterion(pred, labels)
         losses.append(loss.item())
         optimizer.zero_grad()
@@ -113,7 +99,7 @@ def evaluate(model, test_loader, criterion):
         for batch in tqdm(test_loader):
             images = batch[0].to(args.device)
             labels.extend(batch[1].tolist())
-            pred = model(images).logits
+            pred = model(images)
             preds.extend(torch.argmax(pred, dim=1).tolist())
             loss = criterion(pred, batch[1].to(args.device))
             losses.append(loss.item())
@@ -121,26 +107,8 @@ def evaluate(model, test_loader, criterion):
                                                                                            average='macro')
 
 
-def load_and_evaluate(model, save_path, test_loader, original_test_loader, criterion):
-    # load the best model
-    model.load_state_dict(torch.load(save_path))
-    test_loss, acc, (precision, recall, f1, _) = evaluate(model, test_loader, criterion)
-
-    original_test_loss, original_acc, (original_precision, original_recall, original_f1, _) = evaluate(model,
-                                                                                                       original_test_loader,
-                                                                                                       criterion)
-    wandb.log({"test_acc": acc, "original_test_acc": original_acc})
-
-    logging.info(
-        f'Test Loss: {test_loss:.4f} | Accuracy: {acc:.4f} | Precision: {precision:.4f} |'
-        f' Recall: {recall:.4f} | F1: {f1:.4f}')
-    logging.info(
-        f'Original Test Loss: {original_test_loss:.4f} | Accuracy: {original_acc:.4f} |'
-        f' Precision: {original_precision:.4f} | Recall: {original_recall:.4f} | F1: {original_f1:.4f}')
-
-
-
 def main(args):
+    args.dataset_dir = os.path.join(args.original_dataset_dir, args.dataset)
     wandb.login(key=os.environ.get("WANDB_LOGIN"))
     wandb.init(project="bg-analysis", config=args, name=args.exp_name + "_" + args.dataset)
     logging.basicConfig(
@@ -154,77 +122,48 @@ def main(args):
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    original_test_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, 'test', 'original', 'val'))
-    train_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, args.dataset, 'train'))
-    val_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, args.dataset, 'val'))
-    test_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, 'test', args.dataset, 'val'))
+    original_dataset = torchvision.datasets.ImageFolder(os.path.join(args.original_dataset_dir, 'CUB_200_2011',
+                                                                     'images'))
+    dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir))
 
     if args.dataset_ratio < 1.0:
-        train_dataset = torch.utils.data.Subset(train_dataset, np.random.choice(len(train_dataset),
-                                                                                          int(args.dataset_ratio * len(
-                                                                                              train_dataset)),
-                                                                                          replace=False))
+        dataset = torch.utils.data.Subset(dataset, np.random.choice(len(dataset),
+                                                                    int(args.dataset_ratio * len(dataset)),
+                                                                    replace=False))
+
+    train_val_indices, test_indices = train_test_split(np.arange(len(dataset)), test_size=0.2,
+                                                       stratify=dataset.targets, random_state=args.seed)
+    train_indices, val_indices = train_test_split(train_val_indices, test_size=0.1,
+                                                  stratify=np.array(dataset.targets)[train_val_indices],
+                                                  random_state=args.seed)
+
+    train_dataset = torch.utils.data.Subset(dataset, train_indices)
+    val_dataset = torch.utils.data.Subset(dataset, val_indices)
+    test_dataset = torch.utils.data.Subset(dataset, test_indices)
+    original_test_dataset = torch.utils.data.Subset(original_dataset, test_dataset.indices)
 
     logging.info(f'Train Dataset Size: {len(train_dataset)}')
-    logging.info(f'Val Dataset Size: {len(val_dataset)}')
-    logging.info(f'Original Test Dataset Size: {len(original_test_dataset)}')
-    logging.info(f'{args.dataset} Test Dataset Size: {len(test_dataset)}')
+    logging.info(f'Test Dataset Size: {len(test_dataset)}')
 
-    if 'vit' in args.model:
-        image_processor = AutoImageProcessor.from_pretrained(
-            'google/vit-base-patch16-224-in21k',
-        )
+    tr_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])]
+    )
 
-        # Define torchvision transforms to be applied to each image.
-        if "shortest_edge" in image_processor.size:
-            size = image_processor.size["shortest_edge"]
-        else:
-            size = (image_processor.size["height"], image_processor.size["width"])
-        normalize = (
-            Normalize(mean=image_processor.image_mean, std=image_processor.image_std)
-            if hasattr(image_processor, "image_mean") and hasattr(image_processor, "image_std")
-            else Lambda(lambda x: x)
-        )
-        tr_transform = Compose(
-            [
-                RandomResizedCrop(size),
-                RandomHorizontalFlip(),
-                ToTensor(),
-                normalize,
-            ]
-        )
-        test_transform = Compose(
-            [
-                Resize(size),
-                CenterCrop(size),
-                ToTensor(),
-                normalize,
-            ]
-        )
+    test_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])]
+    )
 
-    else:
-        tr_transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])]
-        )
-
-        test_transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])]
-        )
-
-    if args.dataset_ratio < 1.0:
-        train_dataset.dataset.transform = tr_transform
-    else:
-        train_dataset.transform = tr_transform
-    val_dataset.transform = test_transform
-    test_dataset.transform = test_transform
-    original_test_dataset.transform = test_transform
+    train_dataset.dataset.transform = tr_transform
+    val_dataset.dataset.transform = test_transform
+    test_dataset.dataset.transform = test_transform
+    original_test_dataset.dataset.transform = test_transform
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
@@ -233,7 +172,6 @@ def main(args):
 
     model = get_model(args.model, args.num_classes, args.pretrained)
     model.to(args.device)
-
 
     logging.info(f'Model: {model}')
     logging.info(f'Number of Trainable Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}')
@@ -248,15 +186,9 @@ def main(args):
     logging.info(f'Weight Decay: {args.weight_decay}')
     logging.info(f'Epochs: {args.epochs}')
 
-    args.save_path = os.path.join(args.save_dir,
+    args.save_dir = os.path.join(args.save_dir,
                                  args.exp_name + "_" + args.dataset + args.model + '.pth')
-    os.makedirs(os.path.dirname(args.save_path), exist_ok=True)
-
-    # if checkpoint exists, load it and no need to train
-    if os.path.exists(args.save_path):
-        logging.info(f'Loading Model from {args.save_path}')
-        load_and_evaluate(model, args.save_path, test_loader, original_test_loader, criterion)
-        return
+    os.makedirs(os.path.dirname(args.save_dir), exist_ok=True)
 
     best_acc = 0
     for epoch in range(args.epochs):
@@ -272,10 +204,24 @@ def main(args):
             f' Precision: {val_precision:.4f} | Recall: {val_recall:.4f} | F1: {val_f1:.4f}')
         if val_acc > best_acc:
             best_acc = val_acc
-            torch.save(model.state_dict(), args.save_path)
+            torch.save(model.state_dict(), args.save_dir)
             logging.info(f'Saved Model at Epoch: {epoch}')
 
-    load_and_evaluate(model, args.save_path, test_loader, original_test_loader, criterion)
+    # load the best model
+    model.load_state_dict(torch.load(args.save_dir))
+    test_loss, acc, (precision, recall, f1, _) = evaluate(model, test_loader, criterion)
+
+    original_test_loss, original_acc, (original_precision, original_recall, original_f1, _) = evaluate(model,
+                                                                                                       original_test_loader,
+                                                                                                       criterion)
+    wandb.log({"test_acc": acc, "original_test_acc": original_acc})
+
+    logging.info(
+        f'Test Loss: {test_loss:.4f} | Accuracy: {acc:.4f} | Precision: {precision:.4f} |'
+        f' Recall: {recall:.4f} | F1: {f1:.4f}')
+    logging.info(
+        f'Original Test Loss: {original_test_loss:.4f} | Accuracy: {original_acc:.4f} |'
+        f' Precision: {original_precision:.4f} | Recall: {original_recall:.4f} | F1: {original_f1:.4f}')
 
 
 if __name__ == '__main__':
