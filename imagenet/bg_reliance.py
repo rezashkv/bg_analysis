@@ -77,7 +77,7 @@ def parse_args():
     parser.add_argument('--model', type=str, default='resnet18')
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--num_classes', type=int, default=200)
+    parser.add_argument('--num_classes', type=int, default=9)
     parser.add_argument('--weight_decay', type=float, default=1e-1)
     parser.add_argument('--pretrained', action='store_true')
     parser.add_argument('--lr_scheduler_step_size', type=int, default=10)
