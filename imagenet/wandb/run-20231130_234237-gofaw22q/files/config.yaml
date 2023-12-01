@@ -1,0 +1,96 @@
+wandb_version: 1
+
+verbose:
+  desc: null
+  value: 1
+device:
+  desc: null
+  value: cuda
+seed:
+  desc: null
+  value: 42
+dataset_name:
+  desc: null
+  value: in9l
+dataset_dir:
+  desc: null
+  value: /fs/cbcb-scratch/aliganj/dataset
+dataset_ratio:
+  desc: null
+  value: 1.0
+exp_name:
+  desc: null
+  value: in9l-vit-scratch
+save_dir:
+  desc: null
+  value: /fs/cbcb-scratch/aliganj/results/imagenet/bg_reliance/30-11-2023_23-42-33_tron47.umiacs.umd.edu
+saving_epoch:
+  desc: null
+  value: 5
+model:
+  desc: null
+  value: vit
+num_classes:
+  desc: null
+  value: 9
+pretrained:
+  desc: null
+  value: false
+batch_size:
+  desc: null
+  value: 64
+epochs:
+  desc: null
+  value: 50
+lr:
+  desc: null
+  value: 0.003
+lr_scheduler_step_size:
+  desc: null
+  value: 15
+lr_scheduler_gamma:
+  desc: null
+  value: 0.5
+weight_decay:
+  desc: null
+  value: 0.01
+checkpoint_dir:
+  desc: null
+  value: /fs/cbcb-scratch/aliganj/results/imagenet/bg_reliance/30-11-2023_23-42-33_tron47.umiacs.umd.edu/checkpoints
+_wandb:
+  desc: null
+  value:
+    python_version: 3.11.5
+    cli_version: 0.16.0
+    framework: huggingface
+    huggingface_version: 4.35.2
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1701405757.547053
+    t:
+      1:
+      - 1
+      - 5
+      - 11
+      - 41
+      - 49
+      - 53
+      - 55
+      2:
+      - 1
+      - 5
+      - 11
+      - 41
+      - 49
+      - 53
+      - 55
+      3:
+      - 13
+      - 16
+      - 23
+      4: 3.11.5
+      5: 0.16.0
+      6: 4.35.2
+      8:
+      - 5
+      13: linux-x86_64
