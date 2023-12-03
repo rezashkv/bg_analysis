@@ -83,6 +83,7 @@ def parse_args():
     parser.add_argument('--lr_scheduler_step_size', type=int, default=10)
     parser.add_argument('--lr_scheduler_gamma', type=float, default=0.9)
     parser.add_argument('--dataset_ratio', type=float, default=1.0)
+    parser.add_argument('--weights_path', type=str, default=None)
 
     args = parser.parse_args()
     return args
@@ -123,7 +124,7 @@ def evaluate(model, test_loader, criterion):
 
 def load_and_evaluate(model, save_path, test_loader, original_test_loader, criterion):
     # load the best model
-    model.load_state_dict(torch.load(save_path))
+    model.load_state_dict(torch.load(save_path, map_location=args.device))
     test_loss, acc, (precision, recall, f1, _) = evaluate(model, test_loader, criterion)
 
     original_test_loss, original_acc, (original_precision, original_recall, original_f1, _) = evaluate(model,
@@ -154,19 +155,20 @@ def main(args):
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    original_test_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, 'test', 'original', 'val'))
-    train_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, args.dataset, 'train'))
-    val_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, args.dataset, 'val'))
-    test_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, 'test', args.dataset, 'val'))
-
-    if args.dataset_ratio < 1.0:
-        train_dataset = torch.utils.data.Subset(train_dataset, np.random.choice(len(train_dataset),
+    # If we provide weights for a trained model, skip training and only run tests
+    if args.weights_path is None:
+        train_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, args.dataset, 'train'))
+        if args.dataset_ratio < 1.0:
+            train_dataset = torch.utils.data.Subset(train_dataset, np.random.choice(len(train_dataset),
                                                                                           int(args.dataset_ratio * len(
                                                                                               train_dataset)),
                                                                                           replace=False))
+        val_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, args.dataset, 'val'))
+        logging.info(f'Train Dataset Size: {len(train_dataset)}')
+        logging.info(f'Val Dataset Size: {len(val_dataset)}')
 
-    logging.info(f'Train Dataset Size: {len(train_dataset)}')
-    logging.info(f'Val Dataset Size: {len(val_dataset)}')
+    original_test_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, 'test', 'original', 'val'))
+    test_dataset = torchvision.datasets.ImageFolder(os.path.join(args.dataset_dir, 'test', args.dataset, 'val'))
     logging.info(f'Original Test Dataset Size: {len(original_test_dataset)}')
     logging.info(f'{args.dataset} Test Dataset Size: {len(test_dataset)}')
 
@@ -218,16 +220,18 @@ def main(args):
                                  std=[0.229, 0.224, 0.225])]
         )
 
-    if args.dataset_ratio < 1.0:
-        train_dataset.dataset.transform = tr_transform
-    else:
-        train_dataset.transform = tr_transform
-    val_dataset.transform = test_transform
+    # If we provide weights for a trained model, skip training and only run tests
+    if args.weights_path is None:
+        if args.dataset_ratio < 1.0:
+            train_dataset.dataset.transform = tr_transform
+        else:
+            train_dataset.transform = tr_transform
+        val_dataset.transform = test_transform
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+    
     test_dataset.transform = test_transform
     original_test_dataset.transform = test_transform
-
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
     original_test_loader = DataLoader(original_test_dataset, batch_size=args.batch_size, shuffle=False)
 
@@ -248,7 +252,13 @@ def main(args):
     logging.info(f'Weight Decay: {args.weight_decay}')
     logging.info(f'Epochs: {args.epochs}')
 
-    args.save_path = os.path.join(args.save_dir,
+    # If we provide a path to weights, use that path
+    if args.weights_path is not None:
+        logging.info(f'Loading Weights from {args.weights_path}')
+        args.save_path = args.weights_path
+    else:
+        # Else, create a path for a weights file we will create after training
+        args.save_path = os.path.join(args.save_dir,
                                  args.exp_name + "_" + args.dataset + args.model + '.pth')
     os.makedirs(os.path.dirname(args.save_path), exist_ok=True)
 
