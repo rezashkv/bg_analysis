@@ -160,4 +160,6 @@ cython_debug/
 #.idea/
 
 data/
-in9/
+in9
+artifacts
+wandb
