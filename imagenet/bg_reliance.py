@@ -117,7 +117,10 @@ def evaluate(model, test_loader, criterion):
         for batch in tqdm(test_loader):
             images = batch[0].to(args.device)
             labels.extend(batch[1].tolist())
-            pred = model(images).logits
+            pred = model(images)
+            # If it is a huggingface model, the logits are in a .logits attribute
+            if hasattr(pred, 'logits'):
+                pred = pred.logits
             preds.extend(torch.argmax(pred, dim=1).tolist())
             loss = criterion(pred, batch[1].to(args.device))
             losses.append(loss.item())
