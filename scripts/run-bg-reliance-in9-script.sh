@@ -30,6 +30,7 @@ for dataset_v in "${dataset_variations[@]}"; do
   --test_dir "/path/to/${dataset}/test/${dataset_v}/val" \
   --original_test_dir "/path/to/${dataset}/test/original/val" \
   --output_dir "./outputs-${dataset}-bg-reliance-${dataset_v}" \
+  --cache_dir "/path/to/.cache/huggingface/" \
   --learning_rate 0.001 \
   --weight_decay 0.0 \
   --num_train_epochs 100 \
