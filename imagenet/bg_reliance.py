@@ -95,7 +95,10 @@ def train(model, train_loader, criterion, optimizer, scheduler):
     for batch in tqdm(train_loader):
         images = batch[0].to(args.device)
         labels = batch[1].to(args.device)
-        pred = model(images).logits
+        pred = model(images)
+        # If it is a huggingface model, the logits are in a .logits attribute
+        if hasattr(pred, 'logits'):
+            pred = pred.logits
         loss = criterion(pred, labels)
         losses.append(loss.item())
         optimizer.zero_grad()
