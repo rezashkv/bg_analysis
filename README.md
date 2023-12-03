@@ -23,3 +23,18 @@ Contextual Bias Analysis for Image Classification Models
 5. Update `scripts/run-bg-reliance-in9.sh` so that the line `dataset_variations=("only_bg_b" "only_bg_t" "no_fg")` reflects the choice of training dataset.
 6. Also update all the paths in the script to point to your project.
 7. Run the training with `sbatch scripts/run-bg-reliance-in9.sh`
+
+
+## Running evaluation:
+
+If you have model weights, you can run `bg_reliance.py` with a `--weights_path` argument and it will just do evaluation on the test set passed in for the dataset argument. Here's an example of how you might call it to run evaluation on the mixed_same test set:
+```
+python3 bg_reliance.py \
+    --dataset_dir "/vulcanscratch/mhoover4/code/bg_analysis/in9" \
+    --dataset "mixed_same" \
+    --exp_name "bg-reliance-mixed_same" \
+    --model vit \
+    --batch_size 64 \
+    --device "cuda" \
+    --weights_path "$/vulcanscratch/mhoover4/code/bg_analysis/in9_mixed_rand_vit.pth"
+```
