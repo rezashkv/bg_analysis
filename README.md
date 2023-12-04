@@ -1,6 +1,8 @@
 # bg_analysis
 Contextual Bias Analysis for Image Classification Models
 
+Overleaf for project: https://www.overleaf.com/project/6521efb41b714bcbe0258386
+
 ## Instructions for training a VIT model on IN9 subsets:
 
 1. Clone this repo.
