@@ -25,9 +25,9 @@ CUB: https://drive.google.com/file/d/1wCT58OodPGyT6MuDiy3dtp-fyVSqvxiE/view?usp=
     ```sh
     pip install -r imagenet/requirements.txt
     ```
-5. Update `scripts/run-bg-reliance-in9.sh` so that the line `dataset_variations=("only_bg_b" "only_bg_t" "no_fg")` reflects the choice of training dataset.
+5. Update `scripts/run-bg-reliance-in9-script.sh` so that the line `dataset_variations=("only_bg_b" "only_bg_t" "no_fg")` reflects the choice of training dataset.
 6. Also update all the paths in the script to point to your project.
-7. Run the training with `sbatch scripts/run-bg-reliance-in9.sh`
+7. Run the training with `sbatch scripts/run-bg-reliance-in9-script.sh`
 
 
 ## Running evaluation:
