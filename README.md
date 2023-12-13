@@ -3,6 +3,7 @@ Contextual Bias Analysis for Image Classification Models
 
 ## Datasets
 IN9: https://github.com/MadryLab/backgrounds_challenge#training-data
+
 CUB: https://drive.google.com/file/d/1wCT58OodPGyT6MuDiy3dtp-fyVSqvxiE/view?usp=sharing
 
 ## Instructions for training a VIT model on IN9 subsets:
