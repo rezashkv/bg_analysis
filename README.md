@@ -1,7 +1,9 @@
 # bg_analysis
 Contextual Bias Analysis for Image Classification Models
 
-Overleaf for project: https://www.overleaf.com/project/6521efb41b714bcbe0258386
+## Datasets
+IN9: https://github.com/MadryLab/backgrounds_challenge#training-data
+CUB: https://drive.google.com/file/d/1wCT58OodPGyT6MuDiy3dtp-fyVSqvxiE/view?usp=sharing
 
 ## Instructions for training a VIT model on IN9 subsets:
 
